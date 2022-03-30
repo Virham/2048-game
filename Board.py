@@ -16,13 +16,21 @@ class Board:
         self.font = pygame.font.SysFont("Impact", self.pixelSize)
         self.tiles = [0 for i in range(self.gridSize ** 2)]
 
+        for i in range(16):
+            self.tiles[i] = random.randint(0, 1) * 2
+
     def move(self, direction):
+        startTiles = self.tiles.copy()
+
         for i in range(self.gridSize):
             x = max(-direction[0], 0) * (self.gridSize - 1) + abs(direction[1]) * i
             y = max(-direction[1], 0) * (self.gridSize - 1) + abs(direction[0]) * i
             start = (x, y)
 
             self.traversDirection(start, direction, self.gridSize - 1)
+
+        if self.gridHasChanged(startTiles):
+            self.addRandomTile()
 
     def traversDirection(self, pos, direction, depth):
         index = pos[0] + pos[1] * self.gridSize
@@ -53,6 +61,25 @@ class Board:
             return canMove, False
 
         return int(not self.tiles[index]), False
+
+    def addRandomTile(self):
+        num = 2 if random.random() > 0.9 else 4
+        tile = self.getRandomEmpty()
+        self.tiles[tile] = num
+
+    def gridHasChanged(self, startTiles):
+        for i in range(len(self.tiles)):
+            if self.tiles[i] - startTiles[i]:
+                return True
+
+        return False
+
+    def getRandomEmpty(self):
+        index = random.randint(0, self.gridSize ** 2 - 1)
+        if not self.tiles[index]:
+            return index
+
+        return self.getRandomEmpty()
 
     def draw(self, win):
         pygame.draw.rect(win, (255, 255, 255), (self.x, self.y, self.size, self.size))
