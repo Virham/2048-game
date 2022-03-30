@@ -1,5 +1,6 @@
 import pygame
 import random
+pygame.init()
 
 
 class Board:
@@ -10,11 +11,10 @@ class Board:
 
         self.gridSize = gridSize
         self.pixelSize = int(size / gridSize)
+        self.size = self.gridSize * self.pixelSize  # cuts off few overhanging pixels
 
+        self.font = pygame.font.SysFont("Impact", self.pixelSize)
         self.tiles = [0 for i in range(self.gridSize ** 2)]
-
-        for i in range(10):
-            self.tiles[random.randint(0, self.gridSize ** 2 - 1)] = 1
 
     def move(self, direction):
         for i in range(self.gridSize):
@@ -28,20 +28,31 @@ class Board:
         index = pos[0] + pos[1] * self.gridSize
 
         if not depth:
-            return int(not self.tiles[index])
+            return int(not self.tiles[index]), False
 
-        canMove = self.traversDirection(pos=(pos[0] + direction[0], pos[1] + direction[1]),
+        canMove, hasMerged = self.traversDirection(pos=(pos[0] + direction[0], pos[1] + direction[1]),
                                         direction=direction, depth=depth - 1)
+
+        if not hasMerged and depth - canMove > 0:
+            prevT = (pos[0] + (canMove + 1) * direction[0], pos[1] + (canMove + 1) * direction[1])
+            prevTI = prevT[0] + prevT[1] * self.gridSize
+
+            if self.tiles[prevTI] == self.tiles[index]:
+                self.tiles[prevTI] *= 2
+                self.tiles[index] = 0
+                return canMove + 1, True
+
         if canMove:
             if not self.tiles[index]:
-                return canMove + 1
+                return canMove + 1, False
 
             dest = (pos[0] + canMove * direction[0], pos[1] + canMove * direction[1])
+
             self.tiles[dest[0] + dest[1] * self.gridSize] = self.tiles[index]
             self.tiles[index] = 0
-            return canMove
+            return canMove, False
 
-        return int(not self.tiles[index])
+        return int(not self.tiles[index]), False
 
     def draw(self, win):
         pygame.draw.rect(win, (255, 255, 255), (self.x, self.y, self.size, self.size))
@@ -56,3 +67,5 @@ class Board:
         pos = (self.x + x * self.pixelSize, self.y + y * self.pixelSize)
 
         pygame.draw.rect(win, (0, 0, 0), (pos, (self.pixelSize, self.pixelSize)))
+        text = self.font.render(str(self.tiles[i]), False, (255, 255, 255))
+        win.blit(text, pos)
