@@ -3,6 +3,11 @@ import random
 import math
 pygame.init()
 
+COLOR_PALETTES = [
+    (43, 35, 24),
+    (68, 13, 18)
+
+]
 
 class Board:
     def __init__(self, x, y, size, gridSize):
@@ -16,8 +21,13 @@ class Board:
 
         self.tiles = [0 for i in range(self.gridSize ** 2)]
 
+        self.color_palette = COLOR_PALETTES[1]
+
         for i in range(2):
             self.tiles[self.getRandomEmpty()] = 2
+
+        # for i in range(self.gridSize ** 2):
+        #     self.tiles[i] = pow(2, max(1, i))
 
     def move(self, direction):
         startTiles = self.tiles.copy()
@@ -128,9 +138,9 @@ class Board:
 
         # arbitrary values for generating nice colors
         log = int(math.log2(num))
-        r = log * 68
-        g = log * 13
-        b = log * 18
+        r = log * self.color_palette[0]
+        g = log * self.color_palette[1]
+        b = log * self.color_palette[2]
 
         pygame.draw.rect(win, (r % 256, g % 256, b % 256), (pos, (self.pixelSize, self.pixelSize)))
 
