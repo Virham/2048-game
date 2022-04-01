@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 pygame.init()
 
 
@@ -13,11 +14,10 @@ class Board:
         self.pixelSize = int(size / gridSize)
         self.size = self.gridSize * self.pixelSize  # cuts off few overhanging pixels
 
-        self.font = pygame.font.SysFont("Impact", self.pixelSize)
         self.tiles = [0 for i in range(self.gridSize ** 2)]
 
-        for i in range(16):
-            self.tiles[i] = random.randint(0, 1) * 2
+        for i in range(random.randint(3, 6)):
+            self.addRandomTile()
 
     def move(self, direction):
         startTiles = self.tiles.copy()
@@ -39,31 +39,39 @@ class Board:
             return int(not self.tiles[index]), False
 
         canMove, hasMerged = self.traversDirection(pos=(pos[0] + direction[0], pos[1] + direction[1]),
-                                        direction=direction, depth=depth - 1)
+                                                   direction=direction, depth=depth - 1)
 
         if not hasMerged and depth - canMove > 0:
-            prevT = (pos[0] + (canMove + 1) * direction[0], pos[1] + (canMove + 1) * direction[1])
-            prevTI = prevT[0] + prevT[1] * self.gridSize
-
-            if self.tiles[prevTI] == self.tiles[index]:
-                self.tiles[prevTI] *= 2
-                self.tiles[index] = 0
-                return canMove + 1, True
+            moved = self.mergeTiles(pos, index, direction, canMove)
+            if moved:
+                return moved
 
         if canMove:
-            if not self.tiles[index]:
-                return canMove + 1, False
-
-            dest = (pos[0] + canMove * direction[0], pos[1] + canMove * direction[1])
-
-            self.tiles[dest[0] + dest[1] * self.gridSize] = self.tiles[index]
-            self.tiles[index] = 0
-            return canMove, False
+            return self.moveTile(pos, index, direction, canMove)
 
         return int(not self.tiles[index]), False
 
+    def mergeTiles(self, pos, index, direction, canMove):
+        prevT = (pos[0] + (canMove + 1) * direction[0], pos[1] + (canMove + 1) * direction[1])
+        prevTI = prevT[0] + prevT[1] * self.gridSize
+
+        if self.tiles[prevTI] == self.tiles[index]:
+            self.tiles[prevTI] *= 2
+            self.tiles[index] = 0
+            return canMove + 1, False
+
+    def moveTile(self, pos, index, direction, canMove):
+        if not self.tiles[index]:
+            return canMove + 1, False
+
+        dest = (pos[0] + canMove * direction[0], pos[1] + canMove * direction[1])
+
+        self.tiles[dest[0] + dest[1] * self.gridSize] = self.tiles[index]
+        self.tiles[index] = 0
+        return canMove, False
+
     def addRandomTile(self):
-        num = 2 if random.random() > 0.9 else 4
+        num = 2 if random.random() < 0.9 else 4
         tile = self.getRandomEmpty()
         self.tiles[tile] = num
 
@@ -92,7 +100,17 @@ class Board:
         x = i % self.gridSize
         y = (i - x) // self.gridSize
         pos = (self.x + x * self.pixelSize, self.y + y * self.pixelSize)
+        num = self.tiles[i]
 
-        pygame.draw.rect(win, (0, 0, 0), (pos, (self.pixelSize, self.pixelSize)))
-        text = self.font.render(str(self.tiles[i]), False, (255, 255, 255))
-        win.blit(text, pos)
+        # arbitrary values for generating nice colors
+        log = int(math.log2(num))
+        r = log * 68
+        g = log * 13
+        b = log * 18
+
+        pygame.draw.rect(win, (r % 256, g % 256, b % 256), (pos, (self.pixelSize, self.pixelSize)))
+
+        fontSize = int((1.9 * self.pixelSize) / len(str(num)))
+        font = pygame.font.SysFont("Impact", min(self.pixelSize, fontSize) - 10)
+        text = font.render(str(num), False, (255, 255, 255))
+        win.blit(text, (pos[0] + fontSize / 10, pos[1]))

@@ -21,13 +21,13 @@ class Main:
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             direction = (0, -1)
 
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        elif keys[pygame.K_LEFT] or keys[pygame.K_a]:
             direction = (-1, 0)
 
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
             direction = (0, 1)
 
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             direction = (1, 0)
 
         if direction:
