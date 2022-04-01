@@ -16,8 +16,8 @@ class Board:
 
         self.tiles = [0 for i in range(self.gridSize ** 2)]
 
-        for i in range(random.randint(3, 6)):
-            self.addRandomTile()
+        for i in range(2):
+            self.tiles[self.getRandomEmpty()] = 2
 
     def move(self, direction):
         startTiles = self.tiles.copy()
@@ -58,7 +58,7 @@ class Board:
         if self.tiles[prevTI] == self.tiles[index]:
             self.tiles[prevTI] *= 2
             self.tiles[index] = 0
-            return canMove + 1, False
+            return canMove + 1, True
 
     def moveTile(self, pos, index, direction, canMove):
         if not self.tiles[index]:

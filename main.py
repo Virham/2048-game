@@ -1,4 +1,5 @@
 import pygame
+import time
 from Board import Board
 
 class Main:
@@ -31,6 +32,7 @@ class Main:
             direction = (1, 0)
 
         if direction:
+            time.sleep(0.1)
             self.board.move(direction)
 
     def loop(self):
