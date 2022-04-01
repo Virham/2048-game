@@ -32,6 +32,8 @@ class Board:
         if self.gridHasChanged(startTiles):
             self.addRandomTile()
 
+        return not self.gameOver()
+
     def traversDirection(self, pos, direction, depth):
         index = pos[0] + pos[1] * self.gridSize
 
@@ -81,6 +83,28 @@ class Board:
                 return True
 
         return False
+
+    def gameOver(self):
+        for i in range(self.gridSize):
+            for j in range(self.gridSize):
+                index = i + j * self.gridSize
+
+                if not self.tiles[index]:
+                    return False
+
+                # check on the x axis
+                if i < self.gridSize - 1:
+                    nextIndex = (i + 1) + j * self.gridSize
+                    if self.tiles[index] == self.tiles[nextIndex]:
+                        return False
+
+                # check on the y axis
+                if j < self.gridSize - 1:
+                    nextIndex = i + (j + 1) * self.gridSize
+                    if self.tiles[index] == self.tiles[nextIndex]:
+                        return False
+
+        return True
 
     def getRandomEmpty(self):
         index = random.randint(0, self.gridSize ** 2 - 1)
