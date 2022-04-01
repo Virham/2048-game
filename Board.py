@@ -1,13 +1,9 @@
 import pygame
 import random
 import math
+from Tile import Tile
 pygame.init()
 
-COLOR_PALETTES = [
-    (43, 35, 24),
-    (68, 13, 18)
-
-]
 
 class Board:
     def __init__(self, x, y, size, gridSize):
@@ -20,14 +16,30 @@ class Board:
         self.size = self.gridSize * self.pixelSize  # cuts off few overhanging pixels
 
         self.tiles = [0 for i in range(self.gridSize ** 2)]
+        self.animationTiles = []
 
-        self.color_palette = COLOR_PALETTES[1]
 
         for i in range(2):
-            self.tiles[self.getRandomEmpty()] = 2
+            self.addRandomTile()
 
         # for i in range(self.gridSize ** 2):
         #     self.tiles[i] = pow(2, max(1, i))
+
+    def changePos(self, index, newIndex):
+        tile = self.tiles[index]
+
+        tile.pos = self.getPos(newIndex)
+
+        return tile
+
+    def makeTile(self, num, index):
+        return Tile(num, self.getPos(index), self.pixelSize)
+
+    def getPos(self, index):
+        x = index % self.gridSize
+        y = (index - x) // self.gridSize
+
+        return self.x + x * self.pixelSize, self.y + y * self.pixelSize
 
     def move(self, direction):
         startTiles = self.tiles.copy()
@@ -66,9 +78,10 @@ class Board:
     def mergeTiles(self, pos, index, direction, canMove):
         prevT = (pos[0] + (canMove + 1) * direction[0], pos[1] + (canMove + 1) * direction[1])
         prevTI = prevT[0] + prevT[1] * self.gridSize
+        tile = self.tiles[index]
 
-        if self.tiles[prevTI] == self.tiles[index]:
-            self.tiles[prevTI] *= 2
+        if tile and tile.sameNum(self.tiles[prevTI]):
+            self.tiles[prevTI] * 2
             self.tiles[index] = 0
             return canMove + 1, True
 
@@ -77,19 +90,21 @@ class Board:
             return canMove + 1, False
 
         dest = (pos[0] + canMove * direction[0], pos[1] + canMove * direction[1])
+        nextIndex = dest[0] + dest[1] * self.gridSize
 
-        self.tiles[dest[0] + dest[1] * self.gridSize] = self.tiles[index]
+        self.tiles[nextIndex] = self.changePos(index, nextIndex)  # self.tiles[index]
         self.tiles[index] = 0
+        self.animationTiles.append((index, nextIndex))
         return canMove, False
 
     def addRandomTile(self):
         num = 2 if random.random() < 0.9 else 4
         tile = self.getRandomEmpty()
-        self.tiles[tile] = num
+        self.tiles[tile] = self.makeTile(num, tile)
 
     def gridHasChanged(self, startTiles):
         for i in range(len(self.tiles)):
-            if self.tiles[i] - startTiles[i]:
+            if self.tiles[i] != startTiles[i]:
                 return True
 
         return False
@@ -98,20 +113,25 @@ class Board:
         for i in range(self.gridSize):
             for j in range(self.gridSize):
                 index = i + j * self.gridSize
+                tile = self.tiles[index]
 
-                if not self.tiles[index]:
+                if not tile:
                     return False
 
                 # check on the x axis
                 if i < self.gridSize - 1:
                     nextIndex = (i + 1) + j * self.gridSize
-                    if self.tiles[index] == self.tiles[nextIndex]:
+                    nextTile = self.tiles[nextIndex]
+
+                    if not nextTile or tile.sameNum(self.tiles[nextIndex]):
                         return False
 
                 # check on the y axis
                 if j < self.gridSize - 1:
                     nextIndex = i + (j + 1) * self.gridSize
-                    if self.tiles[index] == self.tiles[nextIndex]:
+                    nextTile = self.tiles[nextIndex]
+
+                    if not nextTile or tile.sameNum(self.tiles[nextIndex]):
                         return False
 
         return True
@@ -127,8 +147,10 @@ class Board:
         pygame.draw.rect(win, (255, 255, 255), (self.x, self.y, self.size, self.size))
 
         for i in range(len(self.tiles)):
-            if self.tiles[i]:
-                self.drawTile(win, i)
+            tile = self.tiles[i]
+
+            if tile:
+                tile.draw(win)
 
     def drawTile(self, win, i):
         x = i % self.gridSize
