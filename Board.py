@@ -1,11 +1,17 @@
 import pygame
 import random
 import math
+import time
+
 from Tile import Tile
 pygame.init()
 
 
 class Board:
+    MOVE = "Move"
+    INCREASE = "Increase"
+    SPAWN = "Spawn"
+
     def __init__(self, x, y, size, gridSize):
         self.x = x
         self.y = y
@@ -16,19 +22,25 @@ class Board:
         self.size = self.gridSize * self.pixelSize  # cuts off few overhanging pixels
 
         self.tiles = [0 for i in range(self.gridSize ** 2)]
+
+        self.animationSpeed = 5
         self.animationTiles = []
+        self.animations = {
+            self.MOVE: lambda tile, dt: tile.moveTile(dt),
+            self.INCREASE: lambda tile, dt: tile.increaseTile(dt),
+            self.SPAWN: lambda tile, dt: tile.spawnTile(dt)
+        }
 
 
+        self.GenerateStartingBoard()
+
+    def GenerateStartingBoard(self):
         for i in range(2):
-            self.addRandomTile()
-
-        # for i in range(self.gridSize ** 2):
-        #     self.tiles[i] = pow(2, max(1, i))
+            self.addRandomTile().calculateText()
 
     def changePos(self, index, newIndex):
         tile = self.tiles[index]
-
-        tile.pos = self.getPos(newIndex)
+        tile.endPos = self.getPos(newIndex)
 
         return tile
 
@@ -41,7 +53,8 @@ class Board:
 
         return self.x + x * self.pixelSize, self.y + y * self.pixelSize
 
-    def move(self, direction):
+    def move(self, direction, win):
+        self.animationTiles = []
         startTiles = self.tiles.copy()
 
         for i in range(self.gridSize):
@@ -53,6 +66,8 @@ class Board:
 
         if self.gridHasChanged(startTiles):
             self.addRandomTile()
+
+        self.animateChanges(win)
 
         return not self.gameOver()
 
@@ -66,7 +81,7 @@ class Board:
                                                    direction=direction, depth=depth - 1)
 
         if not hasMerged and depth - canMove > 0:
-            moved = self.mergeTiles(pos, index, direction, canMove)
+            moved = self.tryMergeTiles(pos, index, direction, canMove)
             if moved:
                 return moved
 
@@ -75,14 +90,19 @@ class Board:
 
         return int(not self.tiles[index]), False
 
-    def mergeTiles(self, pos, index, direction, canMove):
+    def tryMergeTiles(self, pos, index, direction, canMove):
         prevT = (pos[0] + (canMove + 1) * direction[0], pos[1] + (canMove + 1) * direction[1])
-        prevTI = prevT[0] + prevT[1] * self.gridSize
+        prevI = prevT[0] + prevT[1] * self.gridSize
         tile = self.tiles[index]
 
-        if tile and tile.sameNum(self.tiles[prevTI]):
-            self.tiles[prevTI] * 2
+        if tile and tile.sameNum(self.tiles[prevI]):
+            self.animationTiles.append((self.tiles[prevI], self.INCREASE))
+            self.animationTiles.append((self.tiles[index], self.MOVE))
+
+            self.tiles[prevI].merge()
+            self.changePos(index, prevI)
             self.tiles[index] = 0
+
             return canMove + 1, True
 
     def moveTile(self, pos, index, direction, canMove):
@@ -92,15 +112,21 @@ class Board:
         dest = (pos[0] + canMove * direction[0], pos[1] + canMove * direction[1])
         nextIndex = dest[0] + dest[1] * self.gridSize
 
-        self.tiles[nextIndex] = self.changePos(index, nextIndex)  # self.tiles[index]
+        self.tiles[nextIndex] = self.changePos(index, nextIndex)
         self.tiles[index] = 0
-        self.animationTiles.append((index, nextIndex))
+
+        self.animationTiles.append((self.tiles[nextIndex], self.MOVE))
+
         return canMove, False
 
     def addRandomTile(self):
         num = 2 if random.random() < 0.9 else 4
         tile = self.getRandomEmpty()
         self.tiles[tile] = self.makeTile(num, tile)
+
+        self.animationTiles.append((self.tiles[tile], self.SPAWN))
+
+        return self.tiles[tile]
 
     def gridHasChanged(self, startTiles):
         for i in range(len(self.tiles)):
@@ -121,20 +147,23 @@ class Board:
                 # check on the x axis
                 if i < self.gridSize - 1:
                     nextIndex = (i + 1) + j * self.gridSize
-                    nextTile = self.tiles[nextIndex]
-
-                    if not nextTile or tile.sameNum(self.tiles[nextIndex]):
+                    if self.canMoveorMerge(index, nextIndex):
                         return False
 
                 # check on the y axis
                 if j < self.gridSize - 1:
                     nextIndex = i + (j + 1) * self.gridSize
-                    nextTile = self.tiles[nextIndex]
-
-                    if not nextTile or tile.sameNum(self.tiles[nextIndex]):
+                    if self.canMoveorMerge(index, nextIndex):
                         return False
 
         return True
+
+    def canMoveorMerge(self, index, nextIndex):
+        tile = self.tiles[index]
+        nextTile = self.tiles[nextIndex]
+
+        if not nextTile or tile.sameNum(nextTile):
+            return True
 
     def getRandomEmpty(self):
         index = random.randint(0, self.gridSize ** 2 - 1)
@@ -152,21 +181,38 @@ class Board:
             if tile:
                 tile.draw(win)
 
-    def drawTile(self, win, i):
-        x = i % self.gridSize
-        y = (i - x) // self.gridSize
-        pos = (self.x + x * self.pixelSize, self.y + y * self.pixelSize)
-        num = self.tiles[i]
+    def animateChanges(self, win):
+        startTime = time.time()
 
-        # arbitrary values for generating nice colors
-        log = int(math.log2(num))
-        r = log * self.color_palette[0]
-        g = log * self.color_palette[1]
-        b = log * self.color_palette[2]
+        while self.animationSpeed * (time.time() - startTime) < 1:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit()
 
-        pygame.draw.rect(win, (r % 256, g % 256, b % 256), (pos, (self.pixelSize, self.pixelSize)))
+            dt = self.animationSpeed * (time.time() - startTime)
+            self.animate(win, dt)
 
-        fontSize = int((1.9 * self.pixelSize) / len(str(num)))
-        font = pygame.font.SysFont("Impact", min(self.pixelSize, fontSize) - 10)
-        text = font.render(str(num), False, (255, 255, 255))
-        win.blit(text, (pos[0] + fontSize / 10, pos[1]))
+        for animation in self.animationTiles:
+            tile = animation[0]
+            tile.animationDone()
+
+    def animate(self, win, dt):
+        for animations in self.animationTiles:
+            tile = animations[0]
+            animation = animations[1]
+            self.animations[animation](tile, dt)
+
+        self.drawAnimations(win)
+        pygame.display.update()
+
+    def drawAnimations(self, win):
+        self.draw(win)
+
+        for animation in self.animationTiles:
+            tile = animation[0]
+
+            if tile not in self.tiles:
+                tile.draw(win)
+
+        pygame.display.update()
+

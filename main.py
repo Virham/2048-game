@@ -57,7 +57,7 @@ class Main:
             direction = (1, 0)
 
         if direction:
-            if not self.board.move(direction):
+            if not self.board.move(direction, self.win):
                 self.gameOver = True
 
     def loop(self):
